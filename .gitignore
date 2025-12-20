@@ -1,0 +1,44 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build cache
+/build/
+bin/
+cmd/**/bin/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories (if using vendoring)
+vendor/
+
+# Logs
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fyne build artifacts
+fyne-cross/
+*.fyne
+*.app
+*.ipa
+*.apk
+
+# Temporary files
+*.tmp
+*.temp
