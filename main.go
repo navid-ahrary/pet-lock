@@ -1,33 +1,30 @@
 package main
 
 import (
+	"image/color"
 	"log"
 
 	linux_x11 "pet-lock/platform/linux-x11"
+	"pet-lock/ui"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	hook "github.com/robotn/gohook"
+	"golang.design/x/hotkey"
 )
 
 const (
 	windowWidth  = 250
 	windowHeight = 200
 
-	KeyL        = 108
-	KeyLeftAlt  = 65513
-	KeyRightAlt = 65514
-
 	DeviceKeyboard    = "⌨️ Keyboard"
 	DeviceTouchPad    = "🖱️ Touch Pad"
-	DeviceTouchScreen = "🖥️ Touch Screen"
+	DeviceTouchScreen = "👆 Touch Screen"
 )
 
 var (
-	deviceWidgets *widget.CheckGroup
-	locked        bool
+	locked bool
 )
 
 func main() {
@@ -38,46 +35,43 @@ func main() {
 	mainWindow.Resize(resizeWindow())
 	mainWindow.SetFixedSize(true)
 
-	evChan := hook.Start()
-	defer hook.End()
+	labelWidget := widget.NewLabel("What would you like to lock?")
+	deviceWidgets := &widget.CheckGroup{
+		Required:   true,
+		Horizontal: true,
+		Options:    []string{DeviceKeyboard, DeviceTouchPad, DeviceTouchScreen},
+		Selected:   []string{DeviceKeyboard, DeviceTouchPad, DeviceTouchScreen},
+	}
 
-	var altDown bool
+	hintLabel := widget.NewLabel("Shift+Ctrl+L to lock/unlock!")
+	status := ui.NewStatus("Unlocked")
+	status.Text.TextStyle.Bold = true
+	bottomWidget := container.NewBorder(nil, nil, hintLabel, status.Text)
+
 	go func() {
-		for ev := range evChan {
-			switch ev.Kind {
-			case hook.KeyDown:
-				if isAlt(ev.Rawcode) {
-					altDown = true
+		hk := hotkey.New([]hotkey.Modifier{hotkey.ModCtrl, hotkey.ModShift}, hotkey.KeyL)
+		if err := hk.Register(); err != nil {
+			log.Fatalf("The hotkey not registered: %v", err)
+		}
+
+		for range hk.Keydown() {
+			fyne.DoAndWait(func() {
+				locked = !locked
+
+				if locked {
+					deviceWidgets.Disable()
+				} else {
+					deviceWidgets.Enable()
 				}
 
-				if isL(ev.Rawcode) && altDown {
-					log.Println("Alt+L pressed")
+				updateStatus(locked, status)
+			})
 
-					fyne.DoAndWait(func() {
-						locked = !locked
-						if locked {
-							deviceWidgets.Disable()
-						} else {
-							deviceWidgets.Enable()
-						}
-					})
-
-					toggleSelectedDevices()
-				}
-
-			case hook.KeyUp:
-				if isAlt(ev.Rawcode) {
-					altDown = false
-				}
-			}
+			toggleSelectedDevices(deviceWidgets)
 		}
 	}()
 
-	labelWidget := widget.NewLabel("What would you like to lock?")
-	deviceWidgets = generateDeviceWidgets()
-	bottomContainer := widget.NewLabel("Active/Inactive")
-
-	mainWindow.SetContent(container.NewBorder(labelWidget, bottomContainer, nil, nil, deviceWidgets))
+	mainWindow.SetContent(container.NewBorder(labelWidget, bottomWidget, nil, deviceWidgets))
 	mainWindow.ShowAndRun()
 
 	tidyUp()
@@ -100,25 +94,8 @@ func resizeWindow() fyne.Size {
 	return fyne.Size{Width: windowWidth, Height: windowHeight}
 }
 
-func generateDeviceWidgets() *widget.CheckGroup {
-	return &widget.CheckGroup{
-		Required:   true,
-		Horizontal: true,
-		Options:    []string{DeviceKeyboard, DeviceTouchPad, DeviceTouchScreen},
-		Selected:   []string{DeviceKeyboard, DeviceTouchPad, DeviceTouchScreen},
-	}
-}
-
-func isAlt(raw uint16) bool {
-	return raw == KeyLeftAlt || raw == KeyRightAlt
-}
-
-func isL(raw uint16) bool {
-	return raw == KeyL
-}
-
-func toggleSelectedDevices() {
-	selected := deviceWidgets.Selected
+func toggleSelectedDevices(checkGroup *widget.CheckGroup) {
+	selected := checkGroup.Selected
 	if contains(selected, DeviceTouchPad) {
 		log.Println("ToggleTouchPad")
 		linux_x11.ToggleTouchPad()
@@ -138,4 +115,12 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+func updateStatus(locked bool, status *ui.Status) {
+	if locked {
+		status.Set("Locked", color.RGBA{200, 0, 0, 255}) // red
+	} else {
+		status.Set("Unlocked", color.RGBA{0, 200, 0, 255}) // green
+	}
 }
