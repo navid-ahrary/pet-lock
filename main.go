@@ -4,7 +4,10 @@ import (
 	"image/color"
 	"log"
 
+	"pet-lock/internal/logging"
+	"pet-lock/platform"
 	linux_x11 "pet-lock/platform/linux-x11"
+	"pet-lock/platform/win_11"
 	"pet-lock/ui"
 
 	"fyne.io/fyne/v2"
@@ -25,9 +28,26 @@ const (
 
 var (
 	locked bool
+	os     = platform.DetectPlatform()
 )
 
 func main() {
+	logFile, err := logging.Init("PetLock")
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+
+	log.Println("Application starting")
+
+	if os == "win" {
+		if !win_11.IsRunningAsAdmin() {
+			log.Println("Requesting Administrator privileges...")
+			_ = win_11.RelaunchAsAdmin()
+			return
+		}
+	}
+
 	myApp := app.New()
 	setIcon(myApp)
 
@@ -48,6 +68,8 @@ func main() {
 	status.Text.TextStyle.Bold = true
 	bottomWidget := container.NewBorder(nil, nil, hintLabel, status.Text)
 
+	mainWindow.SetContent(container.NewBorder(labelWidget, bottomWidget, nil, deviceWidgets))
+
 	go func() {
 		hk := hotkey.New([]hotkey.Modifier{hotkey.ModCtrl, hotkey.ModShift}, hotkey.KeyL)
 		if err := hk.Register(); err != nil {
@@ -59,6 +81,7 @@ func main() {
 				locked = !locked
 
 				if locked {
+
 					deviceWidgets.Disable()
 				} else {
 					deviceWidgets.Enable()
@@ -68,10 +91,10 @@ func main() {
 			})
 
 			toggleSelectedDevices(deviceWidgets)
+
 		}
 	}()
 
-	mainWindow.SetContent(container.NewBorder(labelWidget, bottomWidget, nil, deviceWidgets))
 	mainWindow.ShowAndRun()
 
 	tidyUp()
@@ -96,15 +119,31 @@ func resizeWindow() fyne.Size {
 
 func toggleSelectedDevices(checkGroup *widget.CheckGroup) {
 	selected := checkGroup.Selected
+
 	if contains(selected, DeviceTouchPad) {
-		log.Println("ToggleTouchPad")
-		linux_x11.ToggleTouchPad()
+
+		switch os {
+		case "linux":
+			linux_x11.ToggleTouchpad()
+		case "win":
+			win_11.ToggleTouchpad()
+		}
 	}
 	if contains(selected, DeviceKeyboard) {
-		linux_x11.ToggleKeyboard()
+		switch os {
+		case "linux":
+			linux_x11.ToggleKeyboard()
+		case "win":
+			win_11.ToggleKeyboard()
+		}
 	}
 	if contains(selected, DeviceTouchScreen) {
-		linux_x11.ToggleTouchScreen()
+		switch os {
+		case "linux":
+			linux_x11.ToggleTouchScreen()
+		case "win":
+			win_11.ToggleTouchScreen()
+		}
 	}
 }
 

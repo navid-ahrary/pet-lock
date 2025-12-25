@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func ToggleTouchPad() {
+func ToggleTouchpad() {
 	id, err := getTouchpadID()
 	if err != nil {
 		log.Println("Error detecting touchpad:", err)
@@ -27,10 +27,10 @@ func ToggleTouchPad() {
 
 	if enabled {
 		log.Println("Touchpad is enabled — disabling it")
-		disableTouchPad()
+		disableTouchpad()
 	} else {
 		log.Println("Touchpad is disabled — enabling it")
-		enableTouchPad()
+		enableTouchpad()
 	}
 }
 
@@ -58,7 +58,7 @@ func getTouchpadID() (string, error) {
 	return "", nil
 }
 
-func disableTouchPad() {
+func disableTouchpad() {
 	id, err := getTouchpadID()
 	if err != nil {
 		log.Println("Error detecting touchpad:", err)
@@ -74,7 +74,7 @@ func disableTouchPad() {
 	exec.Command("xinput", "disable", id).Run()
 }
 
-func enableTouchPad() {
+func enableTouchpad() {
 	id, err := getTouchpadID()
 	if err != nil {
 		log.Println("Error detecting touchpad:", err)
